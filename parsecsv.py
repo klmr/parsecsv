@@ -3,6 +3,7 @@
 import argparse
 import csv
 import itertools
+import io
 import sys
 from argx.default import default_arg
 
@@ -11,7 +12,9 @@ def csv_to_fields(istream, ostream, delim, skip):
     """
     Write CSV data from `istream` to `ostream` using `delim` as the field delimiter.
     """
-    reader = csv.reader(istream)
+    header = istream.peek(1000)
+    dialect = csv.Sniffer().sniff(header)
+    reader = csv.reader(istream, dialect)
     if skip > 0:
         reader = itertools.islice(reader, skip, None)
     for row in reader:
@@ -20,14 +23,14 @@ def csv_to_fields(istream, ostream, delim, skip):
 
 
 def main():
-    argparser = argparse.ArgumentParser(description = 'Parse a CSV file')
+    argparser = argparse.ArgumentParser(description = 'Parse a CSV/TSV file')
     argparser.add_argument(
             'filename', nargs = '?',
             help = 'The input filename; use standard input if missing',
             metavar = 'file.csv')
     argparser.add_argument(
             '-d', '--delim', default = '\t',
-            help = 'Use DELIM as the filed delimiter instead of the tab character')
+            help = 'Use DELIM as the output field delimiter instead of the tab character')
     argparser.add_argument(
             '-s', '--skip', default = 0, nargs = '?', type = int,
             action = default_arg(1),
@@ -36,7 +39,8 @@ def main():
 
     args = argparser.parse_args()
 
-    istream = open(args.filename, 'rb') if args.filename is not None else sys.stdin
+    handle = args.filename if args.filename is not None else sys.stdin.fileno()
+    istream = io.open(handle, 'rb')
     ostream = sys.stdout
 
     try:
